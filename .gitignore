@@ -11,4 +11,4 @@ wheels/
 
 # Runtime state and secrets
 config.json
-last_image_date.txt
+last_apod_id.txt

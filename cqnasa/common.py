@@ -1,6 +1,8 @@
 import json
 import urllib.request
 
+TIMEOUT = 60
+
 
 class OneBotError(Exception):
     pass
@@ -19,9 +21,9 @@ def onebot_call(action, params):
     if config.get("ACCESS_TOKEN"):
         headers["Authorization"] = "Bearer " + config["ACCESS_TOKEN"]
     body = json.dumps(params).encode("utf-8")
-    print("Calling OneBot " + action + ": " + body.decode("utf-8"))
+    print("Calling OneBot " + action + ": " + body.decode("utf-8")[:500])
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
         result = json.loads(resp.read())
     print("Result: " + json.dumps(result, ensure_ascii=False))
     if result["status"] == "failed":
@@ -45,6 +47,14 @@ def send_group_msg(group, *segments):
     onebot_call("send_group_msg", {"group_id": int(group), "message": list(segments)})
 
 
+def upload_group_file(group, file, file_name):
+    """Upload a file NapCat can read: a path on its machine or base64:// data."""
+    onebot_call(
+        "upload_group_file",
+        {"group_id": int(group), "file": file, "name": file_name},
+    )
+
+
 def send_group_file(group, file_url, file_name, retries=3):
     for attempt in range(1, retries + 1):
         try:
@@ -54,7 +64,4 @@ def send_group_file(group, file_url, file_name, retries=3):
             print(f"Download attempt {attempt}/{retries} failed: {e}")
     else:
         raise OneBotError("Failed to download file: " + file_url)
-    onebot_call(
-        "upload_group_file",
-        {"group_id": int(group), "file": file, "name": file_name},
-    )
+    upload_group_file(group, file, file_name)
