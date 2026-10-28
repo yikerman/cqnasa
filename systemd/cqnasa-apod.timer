@@ -1,0 +1,9 @@
+[Unit]
+Description=Check NASA APOD hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

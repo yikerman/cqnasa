@@ -1,6 +1,6 @@
 {
     "API_KEY": "DEMO_KEY",
-    "CQ_API": "127.0.0.1:5700",
-    "CQ_GROUP": "614615745",
-    "TIMEZONE": "utc"
+    "ONEBOT_API": "127.0.0.1:3000",
+    "ACCESS_TOKEN": "",
+    "GROUP": "614615745"
 }

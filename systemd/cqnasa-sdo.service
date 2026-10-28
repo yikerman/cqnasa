@@ -1,0 +1,9 @@
+[Unit]
+Description=Send NASA SDO to QQ group
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/cqnasa
+ExecStart=%h/cqnasa/.venv/bin/cqnasa sdo

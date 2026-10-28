@@ -2,28 +2,15 @@
 
 import json
 import urllib.request
-import urllib.parse
+from pathlib import Path
 
-from .common import cq_send_message, load_config
+from .common import at_all, image, load_config, send_group_msg, text
+
+LAST_DATE_FILE = Path("last_image_date.txt")
 
 
-def is_outdated(new_date):
-    content = ""
-    try:
-        f = open("last_image_date.txt", "r")
-        content = f.read()
-        f.close()
-    except FileNotFoundError:
-        f = open("last_image_date.txt", "w")
-        f.write(new_date)
-        f.close()
-        return True
-    if new_date == content:
-        return False
-    f = open("last_image_date.txt", "w")
-    f.write(new_date)
-    f.close()
-    return True
+def is_new(date):
+    return not LAST_DATE_FILE.exists() or LAST_DATE_FILE.read_text() != date
 
 
 def send_apod():
@@ -36,14 +23,19 @@ def send_apod():
     content_json = json.loads(content)
     print("Received ", content_json)
 
-    if not is_outdated(content_json["date"]):
+    date = content_json["date"]
+    if not is_new(date):
         print("No new image of the day")
         return
-    print("New image of the day! " + content_json["date"])
+    if content_json["media_type"] != "image":
+        print("APOD " + date + " is a " + content_json["media_type"] + ", skipping")
+        LAST_DATE_FILE.write_text(date)
+        return
+    print("New image of the day! " + date)
 
-    news_msg = "[CQ:at,qq=all] Astronomy Picture of the Day: " + content_json["date"]
-    cq_send_message(config["CQ_API"], config["CQ_GROUP"], news_msg)
-    cq_send_message(config["CQ_API"], config["CQ_GROUP"], content_json["title"])
-    cq_send_message(config["CQ_API"], config["CQ_GROUP"], content_json["explanation"])
-    image_msg = "[CQ:image,file=" + content_json["url"] + "]"
-    cq_send_message(config["CQ_API"], config["CQ_GROUP"], image_msg)
+    group = config["GROUP"]
+    send_group_msg(group, at_all(), text(" Astronomy Picture of the Day: " + date))
+    send_group_msg(group, text(content_json["title"]))
+    send_group_msg(group, text(content_json["explanation"]))
+    send_group_msg(group, image(content_json["url"]))
+    LAST_DATE_FILE.write_text(date)

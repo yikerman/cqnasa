@@ -1,19 +1,9 @@
 """SDO AIA sender."""
 
-import random
 import datetime
-from .common import cq_send_message, cq_send_file, load_config
+import time
 
-# Checklist:
-# - 193 A
-# - 304 A
-# - 171 A
-# - 211 A
-# - 131 A
-# - 335 A
-# - 094 A
-# - 1600 A
-# - 1700 A
+from .common import load_config, send_group_file, send_group_msg, text
 
 SDO_VIDEOS = [
     {
@@ -86,35 +76,26 @@ Characteristic temperatures: 6,000 K (11,000 F), and 100,000 K (180,000 F)""",
         "description": """Where: Temperature minimum and photosphere
 Wavelength: 1700 angstroms (0.00000017 m) = Far Ultraviolet
 Primary ions seen: Continuum
-Characteristic temperature: 6,000 K (11,000 F)"""
+Characteristic temperature: 6,000 K (11,000 F)""",
     },
 ]
 
-TOTAL_SDO_VIDEOS = len(SDO_VIDEOS)
-SDO_VIDEO_INDEX = random.randint(0, TOTAL_SDO_VIDEOS - 1)
+SLOT_SECONDS = 6 * 60 * 60
 
 
 def get_sdo():
-    global SDO_VIDEO_INDEX
-    SDO_VIDEO_INDEX = (SDO_VIDEO_INDEX + 1) % TOTAL_SDO_VIDEOS
-    return SDO_VIDEOS[SDO_VIDEO_INDEX]
+    # Rotate through wavelengths by 6-hour slot so one-shot runs need no state
+    slot = int(time.time()) // SLOT_SECONDS
+    return SDO_VIDEOS[slot % len(SDO_VIDEOS)]
 
 
 def send_sdo():
     config = load_config()
     sdo = get_sdo()
-    name_and_date = sdo["name"].replace(" ", "-") + "_" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".mp4"
-    r = cq_send_file(
-        config["CQ_API"],
-        config["CQ_GROUP"],
-        sdo["url"],
-        name_and_date,
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    file_name = sdo["name"].replace(" ", "-") + "_" + timestamp + ".mp4"
+    send_group_file(config["GROUP"], sdo["url"], file_name)
+    send_group_msg(
+        config["GROUP"], text("Sun in the past 48 hours from " + sdo["name"])
     )
-    if not r:
-        return
-    cq_send_message(
-        config["CQ_API"],
-        config["CQ_GROUP"],
-        "Sun in the past 48 hours from " + sdo["name"],
-    )
-    cq_send_message(config["CQ_API"], config["CQ_GROUP"], sdo["description"])
+    send_group_msg(config["GROUP"], text(sdo["description"]))
