@@ -63,9 +63,9 @@ def get_explanation(content):
 
 
 def get_title(post):
-    # "APOD: 2026 October 28 – The Mutual Occultation of Ganymede and Io"
+    # "APOD: 2026 October 28 – Title" or "APOD: 29 October 2026 – Title"
     title = unescape(post["title"]["rendered"])
-    return re.sub(r"^APOD: \d{4} \w+ \d{1,2} [–-] ", "", title)
+    return re.sub(r"^APOD: [\w ]+? [–-] ", "", title)
 
 
 def get_video(content):
@@ -130,24 +130,30 @@ def send_apod():
     content = post["content"]["rendered"]
     print("New APOD! " + date)
 
-    # Upload videos before any text, so a failed upload doesn't leave half a post
+    # Send media before any text: media is what usually fails, and a failed run is
+    # retried next hour, so failing first avoids repeating half a post
     kind, video_url = get_video(content)
+    video_sent = False
     if kind:
         try:
             send_video(group, kind, video_url, "APOD-" + date)
+            video_sent = True
         except Exception as e:
             print("Video upload failed, falling back to still image: " + str(e))
-            kind = None
+    if not video_sent:
+        # The resizing CDN (dynamicimage/assets) 502s often; send the original
+        image_url = (
+            post["featured_image_url"]
+            .split("?")[0]
+            .replace("/dynamicimage/assets/", "/content/dam/")
+        )
+        send_group_msg(group, image(image_url))
 
     send_group_msg(group, at_all(), text(" Astronomy Picture of the Day: " + date))
     send_group_msg(group, text(get_title(post)))
     explanation = get_explanation(content)
     if explanation:
         send_group_msg(group, text(explanation))
-    if not kind:
-        # Full-size originals can be 6000px+; let NASA's image CDN scale it down
-        image_url = post["featured_image_url"].split("?")[0] + "?w=2048&h=2048&fit=clip"
-        send_group_msg(group, image(image_url))
-        if video_url:
-            send_group_msg(group, text("Video: " + post["link"]))
+    if video_url and not video_sent:
+        send_group_msg(group, text("Video: " + post["link"]))
     LAST_ID_FILE.write_text(str(post["id"]))
